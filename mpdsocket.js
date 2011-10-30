@@ -28,8 +28,6 @@ function mpdSocket(host,port) {
 	this.open(this.host,this.port);
 }
 
-var data = [];
-
 mpdSocket.prototype = {
 	callbacks: [],
 	commands: [],
@@ -37,38 +35,41 @@ mpdSocket.prototype = {
 	socket: null,
 	version: "0",
 	host: null,
-	port: null
+	port: null,
+	data: "",
+  response: {},
+  responses: [],
 
 	handleData: function(datum) {
-		data.push(datum);
-		if (datum.match(/^(OK MPD|ACK)/) || datum.match(/OK\s*$/)) {
-			this.handleAllData(data.join(''));
-			data = [];
-		}
-	},
+		this.data += datum;
+		lines = this.data.split("\n");
+		// Put back whatever's after the final \n for next time
+		this.data = lines.pop(); 
 
-  handleAllData: function(data) { 
-		var response = {};
-		var responses = [];
-		var lines = data.split("\n");
 		var match;
 		for (var l in lines) {
 			var line = lines[l];
 
 			if (match = line.match(/^ACK\s+\[.*?\](?:\s+\{.*?\})?\s+(.*)/)) {
 				this.callbacks.shift()(match[1], null);
+				this.response = {};
+				this.responses = [];
 			}
 			else if (line.match(/^OK MPD/)) {
 				this.version = lines[l].split(' ')[2];
 			}
 			else if (line.match(/^OK/)) {
-				if (responses.length > 0) {
-					if (Object.keys(response).length > 0) { responses.push(response); }
-					this.callbacks.shift()(null, responses);
+				if (this.responses.length > 0) {
+					if (typeof(this.response) == 'string' || Object.keys(this.response).length > 0) {
+						this.responses.push(this.response);
+					}
+					this.callbacks.shift()(null, this.responses);
 				}
 				else {
-					this.callbacks.shift()(null, response);
+					this.callbacks.shift()(null, this.response);
 				}
+				this.response = {};
+				this.responses = [];
 			}
 			else {
 				// Matches 'key: val' or 'val'
@@ -76,17 +77,17 @@ mpdSocket.prototype = {
 				var key = match[1];
 				var value = match[2];
 				
-				//New response if old response was a string or had this key defined already
-				if (typeof(response) == 'string' || typeof(response[key]) != 'undefined') {
-					responses.push(response);
-					response = {};
+				// New response if old response was a string or had this key defined already
+				if (typeof(this.response) == 'string' || typeof(this.response[key]) != 'undefined') {
+					this.responses.push(this.response);
+					this.response = {};
 				}
 				
 				if (typeof(key) == 'undefined') {
-					response = value;
+					this.response = value;
 				}
 				else {
-					response[key] = value;
+					this.response[key] = value;
 				}
 			}
 		}
