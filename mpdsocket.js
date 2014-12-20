@@ -101,6 +101,7 @@ mpdSocket.prototype = {
 		var self = this;
 		if (!(this.isOpen)) {
 			this.socket = net.createConnection(port,host);
+			this.socket.setKeepAlive(true,0);
 			this.socket.setEncoding('UTF-8');
 			this.socket.addListener('connect',function() { self.isOpen = true; });
 			this.socket.addListener('data',function(data) { self.handleData.call(self,data); self._send(); });
