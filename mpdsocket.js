@@ -80,7 +80,9 @@ mpdSocket.prototype = {
                 var key = match[1];
                 var value = match[2];
                 
-                // New response if old response was a string or it
+                // New response if old response was a string or we see the same key that the record started with
+
+                // mpd will sometimes return multiple 'Date:' or 'Genre:' attributes for the same track
                 if (typeof(this.response) == 'string' || key === this.firstkey) {
                     this.responses.push(this.response);
                     this.response = {};
